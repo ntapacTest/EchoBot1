@@ -10,31 +10,53 @@ using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Newtonsoft.Json;
 
 namespace EchoBot1.Bots
 {
-    public class EchoBot : ActivityHandler
+    public class EchoBot<T> : ActivityHandler where T:Dialog
     {
+        private readonly BotState _conversationState;
+        private readonly BotState _userState;
+        private readonly T _dialog;
+
+
+        public EchoBot(ConversationState conversationState, UserState userState, T dialog)
+        {
+            _conversationState = conversationState;
+            _userState = userState;
+            _dialog = dialog;
+        }
+
+        public override async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default)
+        {
+            await base.OnTurnAsync(turnContext, cancellationToken);
+
+            await _conversationState.SaveChangesAsync(turnContext, false, cancellationToken);
+            await _userState.SaveChangesAsync(turnContext, false, cancellationToken);
+        }
+
         protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
-            if (turnContext.Activity.Text.Equals("hero"))
-            {
-                await GetHeroCard(turnContext, cancellationToken);
-            }
-            else if (turnContext.Activity.Text.Equals("weather"))
-            {
-                await GetWeatherCard(turnContext, cancellationToken);
-            }
-            else if(turnContext.Activity.Text.Equals("adaptive"))
-            {
-                await GetAdaptiveCard(turnContext, cancellationToken);
-            }
-            else
-            {
-                await turnContext.SendActivityAsync(MessageFactory.Text($"Echo: {turnContext.Activity.Text} {turnContext.Activity.Text.Length} {DateTime.Now}"), cancellationToken);
-            }
+            await _dialog.RunAsync(turnContext, _conversationState.CreateProperty<DialogState>(nameof(DialogState)), cancellationToken);
+            //if (turnContext.Activity.Text.Equals("hero"))
+            //{
+            //    await GetHeroCard(turnContext, cancellationToken);
+            //}
+            //else if (turnContext.Activity.Text.Equals("weather"))
+            //{
+            //    await GetWeatherCard(turnContext, cancellationToken);
+            //}
+            //else if(turnContext.Activity.Text.Equals("adaptive"))
+            //{
+            //    await GetAdaptiveCard(turnContext, cancellationToken);
+            //}
+            //else
+            //{
+            //    await turnContext.SendActivityAsync(MessageFactory.Text($"Echo: {turnContext.Activity.Text} {turnContext.Activity.Text.Length} {DateTime.Now}"), cancellationToken);
+            //}
         }
 
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
